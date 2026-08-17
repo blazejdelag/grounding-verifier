@@ -1,0 +1,193 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "4e2424a4-477d-4ab1-b9ed-3f1c0b83f19b",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://www.etftrends.com/feed/",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "640b8f17-f308-431f-8556-44d0d28ae2ea",
+      "name": "RSS Read"
+    },
+    {
+      "parameters": {
+        "maxItems": 3
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        448,
+        0
+      ],
+      "id": "50064623-ab50-46fd-903c-be2b0854e1b3",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=CEL: Przeanalizuj poniższy tekst i tylko i wyłącznie na jego podstawie wyciągnij z niego twierdzenia. \nKONTEKST: poniżej będziesz miał podane artykuły dotyczące rynkowych informacji związanych z ETF. na ich podstawie masz wyciągać twierdzenia o informacjach rynkowych. tekst który masz do przeanalizowania znajduje się na dole prompta między znakami # \nZASADY:\n\n1. Jeśli w tekście brakuje informacji na dany w artykule temat oznacza to że jest brak twierdzenia, nie możesz dodawać niczego od siebie.\n2. Jeśli tekst jest ucięty, nie kończyć myśli autora.\n3. Stopka artykuły to nie treść, nie możesz wyciągać z niej twierdzeń.\n4. W przypadku artykułu w którym nie ma twierdzeń rynkowych, pusta lista jest poprawnym wynikiem\n5. Zachowaj każde zastrzeżenie obecne w tekście: zakres czasowy, warunek, źródło danych, słowa osłabiające. Twierdzenie nie może mówić więcej, niż mówi cytat, na którym sie opiera.\nDEFINICJA TWIERDZENIA RYNKOWEGO: twierdzenie dotyczące mechanizmu rynkowego, którym może byc wzajemne oddziaływanie popyty, podaży i cen w ramach teorii ekonomicznej. Bierz także pod uwagę dane liczbowe, ruchy cen oraz przepływy do funduszy. Przykładem informacji których nie można zaliczyć jako twierdzenia rynkowe sa: subiektywne opinie, reklamy czy informacje niemożliwe do zweryfikowania. \nFORMAT WYJŚCIA: każde twierdzenie ma następujące pola: claim - twierdzenie sformułowane twoimi słowami, jedno zdanie, jedna myśl. quote - fragment tekstu wejściowego przepisany dosłownie, znak w znak bez skracania i bez poprawiania. musi zawierać podstawę dla całego claim. Zapisane twierdzenia mają byc zapisane w liście obiektów, tworzysz swoje pole \"claims\" w której zapisujesz twierdzenia.\nFORMAT WEJŚCIA: dostajesz wejściowy tekst\n\n# {{ $json.contentSnippet }} #",
+        "hasOutputParser": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        672,
+        0
+      ],
+      "id": "74e93423-18c4-450c-926f-54605a6d688c",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.6-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        672,
+        208
+      ],
+      "id": "4d5eb19c-4024-41da-8705-4582c9f8acc6",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "vsHs1hIRBHDGOEwo",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n    \"claims\": [{\n      \"claim\": \"Nadpływy do funduszy ETF na złoto wzrosły w drugim kwartale 2026. \",\n      \"quote\": \"gold ETF inflows rose during the second quarter of 2026\"\n    }]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        816,
+        208
+      ],
+      "id": "8c1fc104-13be-45bd-b32a-1a8fd6e03738",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "jsCode": "const artykuly = $('Limit').all();   \nconst wynik = [];\n\nfor (let i = 0; i < $input.all().length; i++) {\n  const claims = $input.all()[i].json.output.claims;   \n  const zrodlo = artykuly[i].json;                 \n\n  for (const c of claims) {\n    wynik.push({\n      json: {\n        claim: c.claim,\n        quote: c.quote,\n        contentSnippet: zrodlo.contentSnippet,\n        title: zrodlo.title,\n        link: zrodlo.link\n      }\n    });\n  }\n}\n\nreturn wynik;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1072,
+        0
+      ],
+      "id": "39875097-da9a-4956-ad76-5874f222f853",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "RSS Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Read": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "4586471d-353e-4202-922f-5c9caf53db05",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "10b52c4c4a751b0a626c10191737b6aee408787805becf43dad431376257dfc6"
+  },
+  "nodeGroups": [],
+  "id": "cUYjYLVE0SsAMECg",
+  "tags": []
+}
