@@ -96,7 +96,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const artykuly = $('Limit').all();   \nconst wynik = [];\n\nfor (let i = 0; i < $input.all().length; i++) {\n  const claims = $input.all()[i].json.output.claims;   \n  const zrodlo = artykuly[i].json;                 \n\n  for (const c of claims) {\n    wynik.push({\n      json: {\n        claim: c.claim,\n        quote: c.quote,\n        contentSnippet: zrodlo.contentSnippet,\n        title: zrodlo.title,\n        link: zrodlo.link\n      }\n    });\n  }\n}\n\nreturn wynik;"
+        "jsCode": "const artykuly = $('Limit').all();   \nconst wynik = [];\n\nfor (let i = 0; i < $input.all().length; i++) {\n  const claims = $input.all()[i].json.output.claims;   \n  const zrodlo = artykuly[i].json; \n  \n  if (claims.length === 0) {\n      wynik.push({\n        json: {\n          contentSnippet: zrodlo.contentSnippet,\n          title: zrodlo.title,\n          link: zrodlo.link,\n          no_claims: true\n        }\n      });\n      continue;\n    }\n\n  for (const c of claims) {\n    wynik.push({\n      json: {\n        claim: c.claim,\n        quote: c.quote,\n        contentSnippet: zrodlo.contentSnippet,\n        title: zrodlo.title,\n        link: zrodlo.link\n      }\n    });\n  }\n}\n\nreturn wynik;"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -106,6 +106,19 @@
       ],
       "id": "39875097-da9a-4956-ad76-5874f222f853",
       "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "jsCode": "const normalizuj = (tekst) => tekst.toLowerCase().replace(/\\s+/g, ' ');\n\nconst wynik = []\nfor (const item of $input.all()) {\n  if (!item.json.quote) {\n    wynik.push({ json: { ...item.json } });\n    continue;\n  }\n  const q = normalizuj(item.json.quote);\n  const s = normalizuj(item.json.contentSnippet);\n  wynik.push({ json: {\n    ...item.json,\n    quote_found: s.includes(q)\n  }});\n}\nreturn wynik;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        0
+      ],
+      "id": "15a2f657-29e8-4511-84ed-ea3f04976e33",
+      "name": "Code in JavaScript1"
     }
   ],
   "pinData": {},
@@ -175,14 +188,26 @@
           }
         ]
       ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
   "settings": {
     "executionOrder": "v1",
-    "binaryMode": "separate"
+    "binaryMode": "separate",
+    "availableInMCP": false
   },
-  "versionId": "4586471d-353e-4202-922f-5c9caf53db05",
+  "versionId": "a02243c1-e01f-4b10-ba21-86f88b1d4244",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "10b52c4c4a751b0a626c10191737b6aee408787805becf43dad431376257dfc6"
