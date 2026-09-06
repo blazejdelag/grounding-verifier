@@ -1,5 +1,5 @@
 {
-  "name": "My workflow",
+  "name": "grounding-verifier",
   "nodes": [
     {
       "parameters": {
@@ -44,22 +44,6 @@
       ],
       "id": "50064623-ab50-46fd-903c-be2b0854e1b3",
       "name": "Limit"
-    },
-    {
-      "parameters": {
-        "promptType": "define",
-        "text": "=CEL: Przeanalizuj poniższy tekst i tylko i wyłącznie na jego podstawie wyciągnij z niego twierdzenia. \nKONTEKST: poniżej będziesz miał podane artykuły dotyczące rynkowych informacji związanych z ETF. na ich podstawie masz wyciągać twierdzenia o informacjach rynkowych. tekst który masz do przeanalizowania znajduje się na dole prompta między znakami # \nZASADY:\n\n1. Jeśli w tekście brakuje informacji na dany w artykule temat oznacza to że jest brak twierdzenia, nie możesz dodawać niczego od siebie.\n2. Jeśli tekst jest ucięty, nie kończyć myśli autora.\n3. Stopka artykuły to nie treść, nie możesz wyciągać z niej twierdzeń.\n4. W przypadku artykułu w którym nie ma twierdzeń rynkowych, pusta lista jest poprawnym wynikiem\n5. Zachowaj każde zastrzeżenie obecne w tekście: zakres czasowy, warunek, źródło danych, słowa osłabiające. Twierdzenie nie może mówić więcej, niż mówi cytat, na którym sie opiera.\nDEFINICJA TWIERDZENIA RYNKOWEGO: twierdzenie dotyczące mechanizmu rynkowego, którym może byc wzajemne oddziaływanie popyty, podaży i cen w ramach teorii ekonomicznej. Bierz także pod uwagę dane liczbowe, ruchy cen oraz przepływy do funduszy. Przykładem informacji których nie można zaliczyć jako twierdzenia rynkowe sa: subiektywne opinie, reklamy czy informacje niemożliwe do zweryfikowania. \nFORMAT WYJŚCIA: każde twierdzenie ma następujące pola: claim - twierdzenie sformułowane twoimi słowami, jedno zdanie, jedna myśl. quote - fragment tekstu wejściowego przepisany dosłownie, znak w znak bez skracania i bez poprawiania. claim ma być napisany w języku źrodła. musi zawierać podstawę dla całego claim. Zapisane twierdzenia mają byc zapisane w liście obiektów, tworzysz swoje pole \"claims\" w której zapisujesz twierdzenia.\nFORMAT WEJŚCIA: dostajesz wejściowy tekst\n\n# {{ $json.contentSnippet }} #",
-        "hasOutputParser": true,
-        "batching": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.chainLlm",
-      "typeVersion": 1.9,
-      "position": [
-        544,
-        0
-      ],
-      "id": "74e93423-18c4-450c-926f-54605a6d688c",
-      "name": "Basic LLM Chain"
     },
     {
       "parameters": {
@@ -142,22 +126,6 @@
     },
     {
       "parameters": {
-        "promptType": "define",
-        "text": "=ROLA: jesteś sędzią który ocenia czy wyłącznie na podstawie podanego quote można wysnuć podany claim. twoją jedyną bazą wiedzy jest quote i nic więcej\nZASADY:\n1. Nie oceniasz prawdziwości twierdzenia\n2. Nie korzystasz z własnej wiedzy o świecie\n3. Nie masz dostępu do pełniejszego obrazu cytatu, nie uzupełniasz urwanych zdań ani kontekstu przed czy po cytacie\nREGUŁY OCENY:\n1. twierdzenie węższe niż cytat = przypadek pozytywny\n2. twierdzenie dokładające nowe fakty/liczby/podmioty = przypadek negatywny\n3. usunięcie/osłabienie zastrzeżenia obecnego w cytacie = przypadek negatywny\n4. twierdzenie o zmienionej polaryzacji w porównaniu do cytatu = przypadek negatywny\n5. twierdzenie fałszywe, które jest w  pełni pokryte w cytacie = przypadek pozytywny\nFORMAT WYJŚCIA: na początek piszesz reason gdzie wpisujesz powód dla którego w dany sposób oceniłeś podane twierdzenie tzn. w przypadku negatywnym co zostało dodane ponad quote a w przypadku pozytywnym która część cytatu pokrywa claim. pole musi zawsze zostać wypełnione, nigdy puste. po reason wpisujesz within_scope w którym wpisujesz true/false na podstawie twojej oceny podanego twierdzenia w reason. within_scope jest wprost zależne od reason. wyjście ma byc napisane w języku angielskim\nFORMAT WEJŚCIA: dostajesz claim i quote\n\nCLAIM:\n{{ $json.claim }} \nQUOTE:\n{{ $json.quote }} ",
-        "hasOutputParser": true,
-        "batching": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.chainLlm",
-      "typeVersion": 1.9,
-      "position": [
-        1344,
-        0
-      ],
-      "id": "5bd0e56a-e74a-47b5-be02-bc84932efb87",
-      "name": "Basic LLM Chain1"
-    },
-    {
-      "parameters": {
         "modelName": "models/gemini-3.5-flash",
         "options": {}
       },
@@ -191,19 +159,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const normalizuj = (tekst) => tekst.toLowerCase().replace(/\\s+/g, ' ');\n\nconst wynik = []\nfor (const item of $input.all()) {\n  if (!item.json.quote) {\n    wynik.push({ json: { ...item.json,\n                       quote_found: false} });\n    continue;\n  }\n  const q = normalizuj(item.json.quote);\n  const s = normalizuj(item.json.contentSnippet);\n  wynik.push({ json: {\n    ...item.json,\n    no_claims: false,\n    quote_found: s.includes(q)\n  }});\n}\nreturn wynik;"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        992,
-        0
-      ],
-      "id": "15a2f657-29e8-4511-84ed-ea3f04976e33",
-      "name": "Code2"
-    },
-    {
-      "parameters": {
         "jsCode": "const artykuly = $('Limit').all();   \nconst wynik = [];\n\nfor (let i = 0; i < $input.all().length; i++) {\n  const claims = $input.all()[i].json.output.claims;   \n  const zrodlo = artykuly[i].json; \n  \n  if (claims.length === 0) {\n      wynik.push({\n        json: {\n          contentSnippet: zrodlo.contentSnippet,\n          title: zrodlo.title,\n          link: zrodlo.link,\n          no_claims: true\n        }\n      });\n      continue;\n    }\n\n  for (const c of claims) {\n    wynik.push({\n      json: {\n        claim: c.claim,\n        quote: c.quote,\n        contentSnippet: zrodlo.contentSnippet,\n        title: zrodlo.title,\n        link: zrodlo.link\n      }\n    });\n  }\n}\n\nreturn wynik;"
       },
       "type": "n8n-nodes-base.code",
@@ -214,6 +169,51 @@
       ],
       "id": "39875097-da9a-4956-ad76-5874f222f853",
       "name": "Code1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=CEL: Przeanalizuj poniższy tekst i tylko i wyłącznie na jego podstawie wyciągnij z niego twierdzenia. \nKONTEKST: poniżej będziesz miał podane artykuły dotyczące rynkowych informacji związanych z ETF. na ich podstawie masz wyciągać twierdzenia o informacjach rynkowych. tekst który masz do przeanalizowania znajduje się na dole prompta między znakami # \nZASADY:\n\n1. Jeśli w tekście brakuje informacji na dany w artykule temat oznacza to że jest brak twierdzenia, nie możesz dodawać niczego od siebie.\n2. Jeśli tekst jest ucięty, nie kończyć myśli autora.\n3. Stopka artykuły to nie treść, nie możesz wyciągać z niej twierdzeń.\n4. W przypadku artykułu w którym nie ma twierdzeń rynkowych, pusta lista jest poprawnym wynikiem\n5. Zachowaj każde zastrzeżenie obecne w tekście: zakres czasowy, warunek, źródło danych, słowa osłabiające. Twierdzenie nie może mówić więcej, niż mówi cytat, na którym sie opiera.\nDEFINICJA TWIERDZENIA RYNKOWEGO: twierdzenie dotyczące mechanizmu rynkowego, którym może byc wzajemne oddziaływanie popyty, podaży i cen w ramach teorii ekonomicznej. Bierz także pod uwagę dane liczbowe, ruchy cen oraz przepływy do funduszy. Przykładem informacji których nie można zaliczyć jako twierdzenia rynkowe sa: subiektywne opinie, reklamy czy informacje niemożliwe do zweryfikowania. \nFORMAT WYJŚCIA: każde twierdzenie ma następujące pola: claim - twierdzenie sformułowane twoimi słowami, jedno zdanie, jedna myśl. quote - fragment tekstu wejściowego przepisany dosłownie, znak w znak bez skracania i bez poprawiania. claim ma być napisany w języku źrodła. musi zawierać podstawę dla całego claim. Zapisane twierdzenia mają byc zapisane w liście obiektów, tworzysz swoje pole \"claims\" w której zapisujesz twierdzenia.\nFORMAT WEJŚCIA: dostajesz wejściowy tekst\n\n# {{ $json.contentSnippet }} #",
+        "hasOutputParser": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        544,
+        0
+      ],
+      "id": "74e93423-18c4-450c-926f-54605a6d688c",
+      "name": "Extractor"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=ROLA: jesteś sędzią który ocenia czy wyłącznie na podstawie podanego quote można wysnuć podany claim. twoją jedyną bazą wiedzy jest quote i nic więcej\nZASADY:\n1. Nie oceniasz prawdziwości twierdzenia\n2. Nie korzystasz z własnej wiedzy o świecie\n3. Nie masz dostępu do pełniejszego obrazu cytatu, nie uzupełniasz urwanych zdań ani kontekstu przed czy po cytacie\nREGUŁY OCENY:\n1. twierdzenie węższe niż cytat = przypadek pozytywny\n2. twierdzenie dokładające nowe fakty/liczby/podmioty = przypadek negatywny\n3. usunięcie/osłabienie zastrzeżenia obecnego w cytacie = przypadek negatywny\n4. twierdzenie o zmienionej polaryzacji w porównaniu do cytatu = przypadek negatywny\n5. twierdzenie fałszywe, które jest w  pełni pokryte w cytacie = przypadek pozytywny\nFORMAT WYJŚCIA: na początek piszesz reason gdzie wpisujesz powód dla którego w dany sposób oceniłeś podane twierdzenie tzn. w przypadku negatywnym co zostało dodane ponad quote a w przypadku pozytywnym która część cytatu pokrywa claim. pole musi zawsze zostać wypełnione, nigdy puste. po reason wpisujesz within_scope w którym wpisujesz true/false na podstawie twojej oceny podanego twierdzenia w reason. within_scope jest wprost zależne od reason. wyjście ma byc napisane w języku angielskim\nFORMAT WEJŚCIA: dostajesz claim i quote\n\nCLAIM:\n{{ $json.claim }} \nQUOTE:\n{{ $json.quote }} ",
+        "hasOutputParser": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1344,
+        0
+      ],
+      "id": "5bd0e56a-e74a-47b5-be02-bc84932efb87",
+      "name": "Judge"
+    },
+    {
+      "parameters": {
+        "jsCode": "const normalizuj = (tekst) => tekst.toLowerCase().replace(/\\s+/g, ' ');\n\nconst wynik = []\nfor (const item of $input.all()) {\n  if (!item.json.quote) {\n    wynik.push({ json: { ...item.json,\n                       quote_found: false} });\n    continue;\n  }\n  const q = normalizuj(item.json.quote);\n  const s = normalizuj(item.json.contentSnippet);\n  wynik.push({ json: {\n    ...item.json,\n    no_claims: false,\n    quote_found: s.includes(q)\n  }});\n}\nreturn wynik;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        992,
+        0
+      ],
+      "id": "15a2f657-29e8-4511-84ed-ea3f04976e33",
+      "name": "Code2"
     },
     {
       "parameters": {
@@ -257,7 +257,7 @@
       "main": [
         [
           {
-            "node": "Basic LLM Chain",
+            "node": "Extractor",
             "type": "main",
             "index": 0
           }
@@ -268,7 +268,7 @@
       "ai_languageModel": [
         [
           {
-            "node": "Basic LLM Chain",
+            "node": "Extractor",
             "type": "ai_languageModel",
             "index": 0
           }
@@ -279,19 +279,8 @@
       "ai_outputParser": [
         [
           {
-            "node": "Basic LLM Chain",
+            "node": "Extractor",
             "type": "ai_outputParser",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Basic LLM Chain": {
-      "main": [
-        [
-          {
-            "node": "Code1",
-            "type": "main",
             "index": 0
           }
         ]
@@ -301,7 +290,7 @@
       "main": [
         [
           {
-            "node": "Basic LLM Chain1",
+            "node": "Judge",
             "type": "main",
             "index": 0
           }
@@ -312,7 +301,7 @@
       "ai_languageModel": [
         [
           {
-            "node": "Basic LLM Chain1",
+            "node": "Judge",
             "type": "ai_languageModel",
             "index": 0
           }
@@ -323,14 +312,36 @@
       "ai_outputParser": [
         [
           {
-            "node": "Basic LLM Chain1",
+            "node": "Judge",
             "type": "ai_outputParser",
             "index": 0
           }
         ]
       ]
     },
-    "Basic LLM Chain1": {
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Code2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extractor": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Judge": {
       "main": [
         [
           {
@@ -351,17 +362,6 @@
           }
         ]
       ]
-    },
-    "Code1": {
-      "main": [
-        [
-          {
-            "node": "Code2",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
     }
   },
   "active": false,
@@ -370,7 +370,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "cc560760-20e1-4e21-b658-5adfbf7a220a",
+  "versionId": "eb5df632-ad6b-4afe-9b4e-6a76955c6eb9",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "10b52c4c4a751b0a626c10191737b6aee408787805becf43dad431376257dfc6"
